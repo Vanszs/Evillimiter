@@ -15,6 +15,22 @@ class Limiter(object):
         self._host_dict = {}
         self._host_dict_lock = threading.Lock()
         self._ensure_nft_tables()
+        self._ensure_root_qdisc()  # Add this line
+
+
+    def _ensure_root_qdisc(self):
+        """
+        Ensure the root HTB qdisc exists on the interface
+        """
+        # Check if root qdisc already exists, if not create it
+        result = shell.execute_suppressed('{} qdisc show dev {}'.format(BIN_TC, self.interface))
+
+        # If no HTB qdisc with handle 1: exists, create it
+        if 'htb 1:' not in result.stdout if hasattr(result, 'stdout') else '':
+            shell.execute_suppressed('{} qdisc add dev {} root handle 1: htb default 30'.format(BIN_TC, self.interface))
+            # Add a default class for unclassified traffic
+            shell.execute_suppressed('{} class add dev {} parent 1: classid 1:30 htb rate 1000mbit'.format(BIN_TC, self.interface))
+
 
     def _ensure_nft_tables(self):
         """
@@ -22,11 +38,11 @@ class Limiter(object):
         """
         # Create inet table for both IPv4 and IPv6
         shell.execute_suppressed('{} add table inet limiter 2>/dev/null || true'.format(BIN_NFTABLES))
-        
+
         # Create mangle chains for packet marking
         shell.execute_suppressed('{} add chain inet limiter prerouting {{ type filter hook prerouting priority mangle; }} 2>/dev/null || true'.format(BIN_NFTABLES))
         shell.execute_suppressed('{} add chain inet limiter postrouting {{ type filter hook postrouting priority mangle; }} 2>/dev/null || true'.format(BIN_NFTABLES))
-        
+
         # Create filter chain for blocking
         shell.execute_suppressed('{} add chain inet limiter forward {{ type filter hook forward priority filter; }} 2>/dev/null || true'.format(BIN_NFTABLES))
 
@@ -42,7 +58,7 @@ class Limiter(object):
             shell.execute_suppressed('{} class add dev {} parent 1:0 classid 1:{} htb rate {r} burst {b}'.format(BIN_TC, self.interface, host_ids.upload_id, r=rate, b=rate * 1.1))
             # add a fw filter that filters packets marked with the corresponding ID
             shell.execute_suppressed('{} filter add dev {} parent 1:0 protocol ip prio {id} handle {id} fw flowid 1:{id}'.format(BIN_TC, self.interface, id=host_ids.upload_id))
-            # marks outgoing packets 
+            # marks outgoing packets
             shell.execute_suppressed('{} add rule inet limiter postrouting ip saddr {} meta mark set {}'.format(BIN_NFTABLES, host.ip, host_ids.upload_id))
         if (direction & Direction.INCOMING) == Direction.INCOMING:
             # add a class to the root qdisc with specified rate
@@ -75,7 +91,7 @@ class Limiter(object):
     def unlimit(self, host, direction):
         if not host.limited and not host.blocked:
             return
-            
+
         with self._host_dict_lock:
             host_ids = self._host_dict[host]['ids']
 
@@ -107,7 +123,7 @@ class Limiter(object):
     def _new_host_limit_ids(self, host, direction):
         """
         Get limit information for corresponding host
-        If not present, create new 
+        If not present, create new
         """
         host_ids = None
 
@@ -118,7 +134,7 @@ class Limiter(object):
         if present:
                 host_ids = self._host_dict[host]['ids']
                 self.unlimit(host, direction)
-        
+
         return Limiter.HostLimitIDs(*self._create_ids()) if host_ids is None else host_ids
 
     def _create_ids(self):
