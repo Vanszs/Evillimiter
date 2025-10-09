@@ -15,7 +15,7 @@ import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 from .host import Host
-from evillimiter.console.io import IO
+from console.io import IO
 
 
 class HostScanner(object):

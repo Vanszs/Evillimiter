@@ -1,8 +1,7 @@
 import threading
 # from .host import Host
-from evillimiter.console import shell
-
-from evillimiter.common.globals import BIN_TC, BIN_NFTABLES
+import console.shell as shell
+from common.globals import BIN_TC, BIN_NFTABLES
 
 
 class Limiter(object):

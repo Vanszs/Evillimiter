@@ -6,9 +6,9 @@ import readline
 import platform
 import collections
 from evillimiter.networking import utils as netutils
-from evillimiter.menus.main_menu import MainMenu
-from evillimiter.console.banner import get_main_banner
-from evillimiter.console.io import IO
+from menus.main_menu import MainMenu
+from console.banner import get_main_banner
+from console.io import IO
 
 
 InitialArguments = collections.namedtuple('InitialArguments', 'interface, gateway_ip, netmask, gateway_mac')
