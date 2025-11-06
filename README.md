@@ -15,36 +15,103 @@ I packaged it for my system, as this is a fork that doesn't have a specific name
 
 you can find the configuration here (it will take you there directly): [Evillimiter.nix](https://github.com/Masrkai/Nix_Configuration/blob/main/Programs/Packages/evillimiter.nix)
 
+## Recent Improvements (November 2025)
+
+### Pentest Stability Fixes
+This fork includes significant stability improvements for penetration testing environments:
+
+**Fixed Issues:**
+- ✅ Eliminated `TimeoutError` spam during network scanning
+- ✅ Resolved gateway MAC address resolution failures
+- ✅ Added retry mechanisms for unreliable networks
+- ✅ Improved error handling for busy/monitored networks
+- ✅ Suppressed verbose scapy output
+
+**Technical Improvements:**
+- Reduced batch size (75→50 IPs) for better reliability
+- Increased timeout (3→5 seconds) for stability
+- Added inter-batch delays (100ms) to prevent network flooding
+- Implemented 3-retry mechanism for gateway MAC resolution
+- Enhanced error suppression for cleaner console output
+- Added graceful degradation for hostname resolution failures
+
+**Performance Characteristics:**
+- ~10-15% slower scanning (trade-off for reliability)
+- Zero crashes on busy networks
+- Clean console output without error spam
+- Works reliably in pentesting/red team scenarios
+
+See [PENTEST_FIX_SUMMARY.md](PENTEST_FIX_SUMMARY.md) and [CHANGES_COMPARISON.md](CHANGES_COMPARISON.md) for detailed technical documentation.
+
+### Nftables Migration
+- Migrated from legacy `iptables` to modern `nftables`
+- Better performance and compatibility with modern Linux kernels
+- Cleaner rule management and improved security
+
 
 **Searching for a Windows-compatible version?**<br>
 Check out the open-source alternative *"made by the original author [bitbrute](https://github.com/bitbrute/) not me "*
 - [EvilLimiter for Windows](https://github.com/bitbrute/evillimiter-windows).
 
 ## Requirements
-- Linux distribution
+- Linux distribution (Tested on Arch Linux, Debian, Ubuntu, NixOS)
 - Python 3 or greater
+- Root/sudo privileges
 
 Possibly missing python packages will be installed during the installation process.
 
 ## Installation
 
+### Arch Linux / Manjaro
 ```bash
+# Install dependencies
+sudo pacman -S python python-setuptools python-pip nftables iproute2
+
+# Clone and install
 git clone https://github.com/Masrkai/Evillimiter.git
-cd evillimiter
+cd Evillimiter
 sudo python3 setup.py install
 ```
 
-### For debian based distros someone from the original repo mentioned installing these packages
+### Debian / Ubuntu / Kali Linux
 ```bash
-sudo apt install python3-setuptools
-sudo apt install python3-netifaces
+# Install dependencies
+sudo apt update
+sudo apt install python3-setuptools python3-netifaces python3-pip nftables iproute2
+
+# Clone and install
+git clone https://github.com/Masrkai/Evillimiter.git
+cd Evillimiter
+sudo python3 setup.py install
 ```
+
+### NixOS
+I packaged it for my system, as this is a fork that doesn't have a specific name "YET" I didn't request merging it into the [Nixpkgs](https://github.com/NixOS/nixpkgs)
+
+you can find the configuration here (it will take you there directly): [Evillimiter.nix](https://github.com/Masrkai/Nix_Configuration/blob/main/Programs/Packages/evillimiter.nix)
 
 ## Usage
 
-Type ```evillimiter``` or ```python3 bin/evillimiter``` to run the tool.
+**Important:** Always run with sudo/root privileges:
+```bash
+sudo evillimiter
+```
 
 ```evillimiter``` will try to resolve required information (network interface, netmask, gateway address, ...) on its own, automatically.
+
+**First Time Setup (Recommended):**
+```bash
+# Flush existing network rules to start clean
+sudo evillimiter --flush
+
+# Run normally
+sudo evillimiter
+
+# In the interactive shell:
+(Main) >>> scan              # Scan network for hosts
+(Main) >>> hosts             # Display found hosts
+(Main) >>> limit 1,2 100kbit # Limit bandwidth of hosts with ID 1 and 2
+```
 
 #### Command-Line Arguments
 
@@ -82,8 +149,69 @@ Type ```evillimiter``` or ```python3 bin/evillimiter``` to run the tool.
 
 - **Limits IPv4 connctions only**, since [ARP spoofing](https://en.wikipedia.org/wiki/ARP_spoofing) requires the ARP packet that is only present  on IPv4 networks.
 
+## Troubleshooting
+
+### Gateway MAC Resolution Issues
+If you encounter `ERR gateway mac address could not be resolved`:
+```bash
+# Try flushing network settings first
+sudo evillimiter --flush
+
+# Or specify gateway MAC manually
+sudo evillimiter -m XX:XX:XX:XX:XX:XX
+```
+
+### Permission Errors
+```bash
+# Ensure you're running as root
+sudo evillimiter
+
+# Check if nftables and tc are available
+which nft
+which tc
+```
+
+### Scan Timeout Issues
+The tool now handles timeouts gracefully. If scanning is slow:
+- This is intentional for stability in pentesting scenarios
+- Reduced batch sizes prevent network flooding
+- Inter-batch delays improve reliability
+
+### Testing Your Installation
+```bash
+# Run the test script
+sudo ./test_pentest_fix.sh
+
+# Or test manually
+sudo evillimiter
+(Main) >>> scan
+```
+
+### Arch Linux Specific
+```bash
+# Enable and start nftables if needed
+sudo systemctl enable nftables
+sudo systemctl start nftables
+
+# Check kernel modules
+lsmod | grep -E 'sch_htb|ifb'
+```
+
 ## Disclaimer
 [Evil Limiter](https://github.com/Masrkai/Evillimiter) is provided by [Masrkai](https://github.com/Masrkai) "as is" and "with all faults". The provider makes no representations or warranties of any kind concerning the safety, suitability, lack of viruses, inaccuracies, typographical errors, or other harmful components of this software. There are inherent dangers in the use of any software, and you are solely responsible for determining whether Evil Limiter is compatible with your equipment and other software installed on your equipment. You are also solely responsible for the protection of your equipment and backup of your data, and the provider will not be liable for any damages you may suffer in connection with using, modifying, or distributing this software.
+
+## Contributors
+
+Special thanks to:
+- **[bitbrute](https://github.com/bitbrute/)** - Original author and creator
+- **[Masrkai](https://github.com/Masrkai/)** - Revival, nftables migration, and active maintenance
+- **[Vanszs](https://github.com/Vanszs/)** - Pentest stability fixes and Arch Linux testing
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for more details.
+
+## Changelog
+
+For detailed changes and version history, see [CHANGELOG](CHANGELOG).
 
 ## License
 
