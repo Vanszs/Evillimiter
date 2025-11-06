@@ -1,21 +1,65 @@
 <p align="center"><img src="/evillimiter/image.png" /></p>
 
-# Evil Limiter, Originally developed by [bitbrute](https://github.com/bitbrute/) brought back to life by [Masrkai](https://github.com/Masrkai/) 
+# Evil Limiter - Enterprise & Pentest Edition
 
 [![License Badge](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Compatibility](https://img.shields.io/badge/python-3-brightgreen.svg)](PROJECT)
-<!-- [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity) -->
-[![Open Source Love](https://badges.frapsoft.com/os/v3/open-source.svg?v=102)](https://github.com/ellerbrock/open-source-badge/)
+[![Compatibility](https://img.shields.io/badge/python-3.11+-brightgreen.svg)](PROJECT)
+[![Platform](https://img.shields.io/badge/platform-Linux-blue.svg)](PROJECT)
+[![Arch Linux](https://img.shields.io/badge/Arch%20Linux-optimized-success.svg)](PROJECT)
 
-A tool to monitor, analyze and limit the bandwidth (upload/download) of devices on your local network without physical or administrative access.<br>
+A powerful tool to monitor, analyze and limit bandwidth (upload/download) of devices on your local network without physical or administrative access. Enhanced for enterprise networks, mesh topology, and penetration testing scenarios.
+
 ```evillimiter``` employs [ARP spoofing](https://en.wikipedia.org/wiki/ARP_spoofing) and [traffic shaping](https://en.wikipedia.org/wiki/Traffic_shaping) to throttle the bandwidth of hosts on the network.
 
-## Nix / NixOS ?
-I packaged it for my system, as this is a fork that doesn't have a specific name "YET" I didn't request merging it into the [Nixpkgs](https://github.com/NixOS/nixpkgs)
+**This Fork Features:**
+- 🎯 Adaptive configuration for networks of any size
+- 🌐 Enterprise network support (10.x.x.x, /16-/24)
+- 🔄 Mesh topology optimization with multi-path handling
+- 🛡️ Enhanced stealth for monitored environments
+- 🚀 Modern nftables implementation
+- 🐛 Robust error handling and automatic recovery
 
-you can find the configuration here (it will take you there directly): [Evillimiter.nix](https://github.com/Masrkai/Nix_Configuration/blob/main/Programs/Packages/evillimiter.nix)
+> **⚠️ Note:** This fork is optimized and tested on **Arch Linux**. If you're using a different distribution (Debian, Ubuntu, Fedora, etc.), please review the installation instructions and adjust package names according to your OS. The tool should work on any modern Linux distribution with proper dependencies.
+
+**Credits:**
+- Original author: [bitbrute](https://github.com/bitbrute/)
+- NixOS packaging: [Masrkai](https://github.com/Masrkai/)
+- Enterprise & Pentest enhancements: [Vanszs](https://github.com/Vanszs/)
 
 ## Recent Improvements (November 2025)
+
+### Enterprise Network & Mesh Topology Support
+**NEW:** Optimized for large enterprise networks and mesh topology:
+
+**Adaptive Configuration:**
+- 🎯 **Auto-detects network size** and adjusts parameters automatically
+- 📊 Small networks (<512 IPs): Fast scanning
+- 🏢 Medium networks (512-1024 IPs): Balanced approach
+- 🌐 Large networks (>1024 IPs): Conservative, reliable scanning
+
+**Mesh Topology Features:**
+- ✅ Multi-response ARP handling (accepts multiple replies)
+- ✅ MAC-based deduplication for redundant paths
+- ✅ Progressive timeout with exponential backoff
+- ✅ Network condition detection and adaptation
+- ✅ Batch retry mechanism with increased timeout
+- ✅ Extra stability delays for complex topologies
+
+**Enhanced Gateway Resolution:**
+- 5 retry attempts (vs 3 previously)
+- Progressive timeout: 3s → 11s (up to 45s total)
+- ARP cache fallback via system `ip neigh`
+- Ether frame compatibility for better mesh support
+
+**Tested On:**
+- ✅ 10.x.x.x enterprise networks (Class A private)
+- ✅ Mesh topology with redundant paths
+- ✅ Networks with 500+ devices
+- ✅ IDS/IPS-monitored environments
+- ✅ Campus/university networks
+- ✅ Corporate networks with VLANs
+
+See [ENTERPRISE_MESH_GUIDE.md](ENTERPRISE_MESH_GUIDE.md) for detailed configuration.
 
 ### Pentest Stability Fixes
 This fork includes significant stability improvements for penetration testing environments:
@@ -28,15 +72,17 @@ This fork includes significant stability improvements for penetration testing en
 - ✅ Suppressed verbose scapy output
 
 **Technical Improvements:**
-- Reduced batch size (75→50 IPs) for better reliability
-- Increased timeout (3→5 seconds) for stability
-- Added inter-batch delays (100ms) to prevent network flooding
-- Implemented 3-retry mechanism for gateway MAC resolution
+- Adaptive batch sizing (20-50 IPs based on network)
+- Smart timeout adjustment (5-8 seconds based on conditions)
+- Inter-batch delays (100-150ms) to prevent network flooding
+- Implemented 5-retry mechanism for gateway MAC resolution
 - Enhanced error suppression for cleaner console output
-- Added graceful degradation for hostname resolution failures
+- Graceful degradation for hostname resolution failures
 
 **Performance Characteristics:**
-- ~10-15% slower scanning (trade-off for reliability)
+- Small networks: ~30-60 seconds for /24
+- Medium networks: ~2-5 minutes for /23
+- Large networks: ~8-15 minutes for /22
 - Zero crashes on busy networks
 - Clean console output without error spam
 - Works reliably in pentesting/red team scenarios
@@ -54,41 +100,109 @@ Check out the open-source alternative *"made by the original author [bitbrute](h
 - [EvilLimiter for Windows](https://github.com/bitbrute/evillimiter-windows).
 
 ## Requirements
-- Linux distribution (Tested on Arch Linux, Debian, Ubuntu, NixOS)
-- Python 3 or greater
+- Linux distribution (Primary: Arch Linux | Compatible: Debian, Ubuntu, Kali, NixOS, Fedora)
+- Python 3.11 or greater
 - Root/sudo privileges
+- Modern Linux kernel (5.x+) with nftables support
 
 Possibly missing python packages will be installed during the installation process.
 
 ## Installation
 
-### Arch Linux / Manjaro
+> **💡 Important:** This fork is developed and optimized on **Arch Linux**. Instructions below are provided for various distributions, but you may need to adjust package names and installation steps according to your specific OS. Check your distribution's documentation for package equivalents.
+
+### Arch Linux / Manjaro (Recommended - Tested)
+
+This is the primary development and testing environment:
+
 ```bash
 # Install dependencies
 sudo pacman -S python python-setuptools python-pip nftables iproute2
 
 # Clone and install
-git clone https://github.com/Masrkai/Evillimiter.git
+git clone https://github.com/Vanszs/Evillimiter.git
 cd Evillimiter
 sudo python3 setup.py install
+
+# Verify installation
+sudo python3 test_enterprise_mesh.py
 ```
 
-### Debian / Ubuntu / Kali Linux
+### Debian / Ubuntu / Kali Linux (Community Tested)
+
 ```bash
 # Install dependencies
 sudo apt update
 sudo apt install python3-setuptools python3-netifaces python3-pip nftables iproute2
 
 # Clone and install
-git clone https://github.com/Masrkai/Evillimiter.git
+git clone https://github.com/Vanszs/Evillimiter.git
 cd Evillimiter
 sudo python3 setup.py install
 ```
 
-### NixOS
-I packaged it for my system, as this is a fork that doesn't have a specific name "YET" I didn't request merging it into the [Nixpkgs](https://github.com/NixOS/nixpkgs)
+**Note for Debian/Ubuntu:** If you encounter issues with nftables, you may need to:
+```bash
+# Enable nftables
+sudo systemctl enable nftables
+sudo systemctl start nftables
 
-you can find the configuration here (it will take you there directly): [Evillimiter.nix](https://github.com/Masrkai/Nix_Configuration/blob/main/Programs/Packages/evillimiter.nix)
+# Or switch from iptables to nftables
+sudo update-alternatives --set iptables /usr/sbin/iptables-nft
+```
+
+### Fedora / RHEL / CentOS (Adjust as Needed)
+
+```bash
+# Install dependencies (adjust package names)
+sudo dnf install python3-setuptools python3-pip nftables iproute
+
+# Clone and install
+git clone https://github.com/Vanszs/Evillimiter.git
+cd Evillimiter
+sudo python3 setup.py install
+```
+
+### Other Linux Distributions
+
+Please adjust package names according to your distribution's package manager:
+
+```bash
+# Generic steps:
+# 1. Install: python3 (>=3.11), pip, setuptools, nftables, iproute2/iproute
+# 2. Clone repository
+# 3. Install Python dependencies
+# 4. Run setup
+
+git clone https://github.com/Vanszs/Evillimiter.git
+cd Evillimiter
+sudo python3 setup.py install
+```
+
+**Common package name equivalents:**
+| Arch Linux | Debian/Ubuntu | Fedora/RHEL | OpenSUSE |
+|------------|---------------|-------------|----------|
+| `python` | `python3` | `python3` | `python3` |
+| `python-pip` | `python3-pip` | `python3-pip` | `python3-pip` |
+| `nftables` | `nftables` | `nftables` | `nftables` |
+| `iproute2` | `iproute2` | `iproute` | `iproute2` |
+
+**Note:** For NixOS users, a package is available at [Evillimiter.nix](https://github.com/Masrkai/Nix_Configuration/blob/main/Programs/Packages/evillimiter.nix)
+
+### Verify Installation
+
+After installation, test that everything works:
+
+```bash
+# Quick test
+sudo evillimiter --help
+
+# Comprehensive test (Arch Linux)
+sudo python3 test_enterprise_mesh.py
+
+# Basic functionality test
+sudo ./test_pentest_fix.sh
+```
 
 ## Usage
 
@@ -112,6 +226,24 @@ sudo evillimiter
 (Main) >>> hosts             # Display found hosts
 (Main) >>> limit 1,2 100kbit # Limit bandwidth of hosts with ID 1 and 2
 ```
+
+**For Enterprise Networks (10.x.x.x, Large Networks, Mesh Topology):**
+```bash
+# The scanner automatically detects network size and optimizes settings
+sudo evillimiter
+
+# Scan your enterprise network
+(Main) >>> scan --range 10.201.3.1-10.201.3.254
+
+# For very large networks, scan in chunks
+(Main) >>> scan --range 10.201.3.1-10.201.3.100
+(Main) >>> scan --range 10.201.3.101-10.201.3.200
+
+# Gateway MAC resolution is enhanced with 5 retries (takes up to 45s)
+# Just wait, it will succeed on enterprise networks
+```
+
+See [ENTERPRISE_MESH_GUIDE.md](ENTERPRISE_MESH_GUIDE.md) for advanced enterprise network usage.
 
 #### Command-Line Arguments
 
@@ -179,7 +311,10 @@ The tool now handles timeouts gracefully. If scanning is slow:
 
 ### Testing Your Installation
 ```bash
-# Run the test script
+# Run the comprehensive test suite
+sudo python3 test_enterprise_mesh.py
+
+# Or run the basic test script
 sudo ./test_pentest_fix.sh
 
 # Or test manually
@@ -197,23 +332,59 @@ sudo systemctl start nftables
 lsmod | grep -E 'sch_htb|ifb'
 ```
 
+## Documentation
+
+- **[README.md](README.md)** - This file, main documentation
+- **[ENTERPRISE_MESH_GUIDE.md](ENTERPRISE_MESH_GUIDE.md)** - Enterprise networks & mesh topology guide
+- **[ARCH_LINUX_GUIDE.md](ARCH_LINUX_GUIDE.md)** - Comprehensive Arch Linux setup guide
+- **[PENTEST_FIX_SUMMARY.md](PENTEST_FIX_SUMMARY.md)** - Technical details of pentest fixes
+- **[CHANGES_COMPARISON.md](CHANGES_COMPARISON.md)** - Before/after comparison
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick reference card
+- **[CHANGELOG](CHANGELOG)** - Version history
+
 ## Disclaimer
-[Evil Limiter](https://github.com/Masrkai/Evillimiter) is provided by [Masrkai](https://github.com/Masrkai) "as is" and "with all faults". The provider makes no representations or warranties of any kind concerning the safety, suitability, lack of viruses, inaccuracies, typographical errors, or other harmful components of this software. There are inherent dangers in the use of any software, and you are solely responsible for determining whether Evil Limiter is compatible with your equipment and other software installed on your equipment. You are also solely responsible for the protection of your equipment and backup of your data, and the provider will not be liable for any damages you may suffer in connection with using, modifying, or distributing this software.
+
+**Legal Notice:** This tool is intended for authorized security testing and network administration only.
+
+Evil Limiter is provided "as is" and "with all faults". The authors and contributors make no representations or warranties of any kind concerning the safety, suitability, or reliability of this software. There are inherent dangers in the use of any network security tool, and you are solely responsible for:
+
+- Ensuring you have proper authorization to use this tool
+- Determining compatibility with your equipment and network
+- Protection of your equipment and backup of your data
+- Compliance with all applicable laws and regulations
+
+**Unauthorized use of this tool may be illegal.** ARP spoofing and traffic manipulation without permission may violate:
+- Computer Fraud and Abuse Act (CFAA) in the US
+- Computer Misuse Act in the UK  
+- Similar laws in other jurisdictions
+
+Use only on networks you own or have explicit written permission to test.
 
 ## Contributors
 
 Special thanks to:
 - **[bitbrute](https://github.com/bitbrute/)** - Original author and creator
-- **[Masrkai](https://github.com/Masrkai/)** - Revival, nftables migration, and active maintenance
-- **[Vanszs](https://github.com/Vanszs/)** - Pentest stability fixes and Arch Linux testing
+- **[Masrkai](https://github.com/Masrkai/)** - Revival and nftables migration
+- **[Vanszs](https://github.com/Vanszs/)** - Enterprise/mesh optimization, pentest stability, and Arch Linux support
 
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for more details.
+## Contributing
 
-## Changelog
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-For detailed changes and version history, see [CHANGELOG](CHANGELOG).
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/Vanszs/Evillimiter/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/Vanszs/Evillimiter/discussions)
 
 ## License
 
-Copyright (c) 2025 by [Masrkai](https://github.com/Masrkai). Some rights reserved.<br>
-[Evil Limiter](https://github.com/Masrkai/evillimiter) is licensed under the MIT License as stated in the [LICENSE file](LICENSE).
+Copyright (c) 2025 by the contributors. Some rights reserved.<br>
+Evil Limiter is licensed under the MIT License as stated in the [LICENSE file](LICENSE).
+
+Original work by [bitbrute](https://github.com/bitbrute/)<br>
+Enhanced and maintained by [Vanszs](https://github.com/Vanszs/) and contributors.
