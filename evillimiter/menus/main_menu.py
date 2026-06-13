@@ -1,5 +1,4 @@
 import time
-import socket
 import curses
 import netaddr
 import threading
@@ -8,6 +7,7 @@ from terminaltables import SingleTable
 
 from .menu import CommandMenu
 from evillimiter.networking import utils as netutils
+from evillimiter.networking.utils import resolve_host_name
 
 # from   networking.utils import BitRate
 from evillimiter.networking.units import BitRate
@@ -85,7 +85,7 @@ class MainMenu(CommandMenu):
         self.netmask = netmask
 
         # range of IP address calculated from gateway IP and netmask
-        self.iprange = list(netaddr.IPNetwork('{}/{}'.format(self.gateway_ip, self.netmask)))
+        self.iprange = list(netaddr.IPNetwork('{}/{}'.format(self.gateway_ip, self.netmask)).iter_hosts())
 
         self.host_scanner = HostScanner(self.interface, self.iprange)
         self.arp_spoofer = ARPSpoofer(self.interface, self.gateway_ip, self.gateway_mac)
@@ -152,9 +152,9 @@ class MainMenu(CommandMenu):
         """
         table_data = [[
             '{}ID{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL),
+            '{}Name{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL),
             '{}IP address{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL),
             '{}MAC address{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL),
-            '{}Hostname{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL),
             '{}Status{}'.format(IO.Style.BRIGHT, IO.Style.RESET_ALL)
         ]]
         
@@ -162,9 +162,9 @@ class MainMenu(CommandMenu):
             for host in self.hosts:
                 table_data.append([
                     '{}{}{}'.format(IO.Fore.LIGHTYELLOW_EX, self._get_host_id(host, lock=False), IO.Style.RESET_ALL),
+                    host.name or '-',
                     host.ip,
                     host.mac,
-                    host.name,
                     host.pretty_status()
                 ])
 
@@ -196,11 +196,21 @@ class MainMenu(CommandMenu):
         direction = self._parse_direction_args(args)
 
         for host in hosts:
-            self.arp_spoofer.add(host)
-            self.limiter.limit(host, direction, rate)
-            self.bandwidth_monitor.add(host)
+            if host.ip == self.gateway_ip:
+                IO.error('skipping gateway {}.'.format(host.ip))
+                continue
 
-            IO.ok('{}{}{r} {} {}limited{r} to {}.'.format(IO.Fore.LIGHTYELLOW_EX, host.ip, Direction.pretty_direction(direction), IO.Fore.LIGHTRED_EX, rate, r=IO.Style.RESET_ALL))
+            was_spoofed = host.spoofed
+            if not was_spoofed:
+                self.arp_spoofer.add(host)
+
+            if self.limiter.limit(host, direction, rate):
+                self.bandwidth_monitor.add(host)
+                IO.ok('{}{}{r} {} {}limited{r} to {}.'.format(IO.Fore.LIGHTYELLOW_EX, host.ip, Direction.pretty_direction(direction), IO.Fore.LIGHTRED_EX, rate, r=IO.Style.RESET_ALL))
+            else:
+                if not was_spoofed and not host.limited and not host.blocked:
+                    self.arp_spoofer.remove(host)
+                IO.error('failed to limit {}.'.format(host.ip))
 
     def _block_handler(self, args):
         """
@@ -212,12 +222,21 @@ class MainMenu(CommandMenu):
 
         if hosts is not None and len(hosts) > 0:
             for host in hosts:
-                if not host.spoofed:
+                if host.ip == self.gateway_ip:
+                    IO.error('skipping gateway {}.'.format(host.ip))
+                    continue
+
+                was_spoofed = host.spoofed
+                if not was_spoofed:
                     self.arp_spoofer.add(host)
 
-                self.limiter.block(host, direction)
-                self.bandwidth_monitor.add(host)
-                IO.ok('{}{}{r} {} {}blocked{r}.'.format(IO.Fore.LIGHTYELLOW_EX, host.ip, Direction.pretty_direction(direction), IO.Fore.RED, r=IO.Style.RESET_ALL))
+                if self.limiter.block(host, direction):
+                    self.bandwidth_monitor.add(host)
+                    IO.ok('{}{}{r} {} {}blocked{r}.'.format(IO.Fore.LIGHTYELLOW_EX, host.ip, Direction.pretty_direction(direction), IO.Fore.RED, r=IO.Style.RESET_ALL))
+                else:
+                    if not was_spoofed and not host.limited and not host.blocked:
+                        self.arp_spoofer.remove(host)
+                    IO.error('failed to block {}.'.format(host.ip))
 
     def _free_handler(self, args):
         """
@@ -227,7 +246,10 @@ class MainMenu(CommandMenu):
         hosts = self._get_hosts_by_ids(args.id)
         if hosts is not None and len(hosts) > 0:
             for host in hosts:
-                self._free_host(host)
+                if self._free_host(host):
+                    IO.ok('{}{}{} freed.'.format(IO.Fore.LIGHTYELLOW_EX, host.ip, IO.Style.RESET_ALL))
+                else:
+                    IO.error('failed to fully free {}.'.format(host.ip))
 
     def _add_handler(self, args):
         """
@@ -252,9 +274,8 @@ class MainMenu(CommandMenu):
 
         name = None
         try:
-            host_info = socket.gethostbyaddr(ip)
-            name = None if host_info is None else host_info[0]
-        except socket.herror:
+            name = resolve_host_name(self.interface, ip, mac, timeout=2.0)
+        except Exception:
             pass
 
         host = Host(ip, mac, name)
@@ -571,20 +592,23 @@ class MainMenu(CommandMenu):
 {s}      scan --range 192.168.178.1/24{r}
 
 {y}hosts (--force){r}{}lists all scanned hosts.
-{s}contains host information, including IDs.
+{s}contains ID, name, IP, MAC and status.
 
-{y}limit [ID1,ID2,...] [rate]{r}{}limits bandwith of host(s) (uload/dload).
+{y}limit [ID/IP/MAC/NAME,...] [rate]{r}{}limits bandwith of host(s) (uload/dload).
 {y}      (--upload) (--download){r}{}{b}e.g.: limit 4 100kbit
 {s}      limit 2,3,4 1gbit --download
-{s}      limit all 200kbit --upload{r}
+{s}      limit all 200kbit --upload
+{s}      limit "realme C63" 5mbit{r}
 
-{y}block [ID1,ID2,...]{r}{}blocks internet access of host(s).
+{y}block [ID/IP/MAC/NAME,...]{r}{}blocks internet access of host(s).
 {y}      (--upload) (--download){r}{}{b}e.g.: block 3,2
-{s}      block all --upload{r}
+{s}      block all --upload
+{s}      block iPhone{r}
 
-{y}free [ID1,ID2,...]{r}{}unlimits/unblocks host(s).
+{y}free [ID/IP/MAC/NAME,...]{r}{}unlimits/unblocks host(s).
 {b}{s}e.g.: free 3
-{s}      free all{r}
+{s}      free all
+{s}      free "realme C63"{r}
 
 {y}add [IP] (--mac [MAC]){r}{}adds custom host to host list.
 {s}mac resolved automatically.
@@ -660,7 +684,11 @@ class MainMenu(CommandMenu):
             with self.hosts_lock:
                 return self.hosts.copy()
 
-        ids = ids_string.split(',')
+        ids = [identifier.strip() for identifier in ids_string.split(',') if identifier.strip()]
+        if not ids:
+            IO.error('invalid identifier(s): \'{}\'.'.format(ids_string))
+            return
+
         hosts = set()
 
         with self.hosts_lock:
@@ -670,7 +698,40 @@ class MainMenu(CommandMenu):
                 is_id_ = id_.isdigit()
 
                 if not is_mac and not is_ip and not is_id_:
-                    IO.error('invalid identifier(s): \'{}\'.'.format(ids_string))
+                    normalized_selector = netutils.normalize_host_name(id_)
+                    if normalized_selector is None:
+                        IO.error('invalid identifier(s): \'{}\'.'.format(ids_string))
+                        return
+
+                    exact_matches = []
+                    partial_matches = []
+                    selector_lower = normalized_selector.lower()
+
+                    for host in self.hosts:
+                        host_name = netutils.normalize_host_name(host.name)
+                        if host_name is None:
+                            continue
+
+                        host_name_lower = host_name.lower()
+                        if host_name_lower == selector_lower:
+                            exact_matches.append(host)
+                        elif selector_lower in host_name_lower:
+                            partial_matches.append(host)
+
+                    if len(exact_matches) == 1:
+                        hosts.add(exact_matches[0])
+                        continue
+                    if len(exact_matches) > 1:
+                        IO.error('multiple hosts match name {}{}{}. use IP, MAC, or ID.'.format(IO.Fore.LIGHTYELLOW_EX, id_, IO.Style.RESET_ALL))
+                        return
+                    if len(partial_matches) == 1:
+                        hosts.add(partial_matches[0])
+                        continue
+                    if len(partial_matches) > 1:
+                        IO.error('multiple hosts partially match {}{}{}. use IP, MAC, or ID.'.format(IO.Fore.LIGHTYELLOW_EX, id_, IO.Style.RESET_ALL))
+                        return
+
+                    IO.error('no host matching {}{}{}.'.format(IO.Fore.LIGHTYELLOW_EX, id_, IO.Style.RESET_ALL))
                     return
 
                 if is_mac or is_ip:
@@ -707,7 +768,7 @@ class MainMenu(CommandMenu):
             if '-' in range:
                 return list(netaddr.iter_iprange(*range.split('-')))
             else:
-                return list(netaddr.IPNetwork(range))
+                return list(netaddr.IPNetwork(range).iter_hosts())
         except netaddr.core.AddrFormatError:
             return
 
@@ -715,8 +776,12 @@ class MainMenu(CommandMenu):
         """
         Stops ARP spoofing and unlimits host
         """
+        success = self.limiter.unlimit(host, Direction.BOTH)
+
+        self.bandwidth_monitor.remove(host)
+        self.host_watcher.remove(host)
+
         if host.spoofed:
             self.arp_spoofer.remove(host)
-            self.limiter.unlimit(host, Direction.BOTH)
-            self.bandwidth_monitor.remove(host)
-            self.host_watcher.remove(host)
+
+        return success

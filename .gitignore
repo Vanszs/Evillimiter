@@ -17,3 +17,5 @@ eggs/
 # Other
 _*
 TODO
+# Log files
+bin/*.log

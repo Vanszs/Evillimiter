@@ -124,11 +124,8 @@ def initialize(interface):
     """
     Sets up requirements, e.g. IP-Forwarding, 3rd party applications
     """
-    if not netutils.create_qdisc_root(interface):
-        IO.spacer()
-        IO.error('qdisc root handle could not be created. maybe flush network settings (--flush).')
-        return False
-
+    # Limiter uses 'handle 1:' (not '1:0'), so we don't pre-create the qdisc here.
+    # Limiter._ensure_root_qdisc() will create it with the correct handle on first use.
     if not netutils.enable_ip_forwarding():
         IO.spacer()
         IO.error('ip forwarding could not be enabled.')
@@ -141,7 +138,7 @@ def cleanup(interface):
     """
     Resets what has been initialized
     """
-    netutils.delete_qdisc_root(interface)
+    netutils.flush_network_settings(interface)
     netutils.disable_ip_forwarding()
 
 

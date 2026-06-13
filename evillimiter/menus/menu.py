@@ -1,3 +1,5 @@
+import shlex
+
 from .parser import CommandParser
 from evillimiter.console.io import IO
 
@@ -34,8 +36,17 @@ class CommandMenu(object):
                 self.interrupt_handler()
                 break
 
-            # split command by spaces and parse the arguments
-            parsed_args = self.parser.parse(command.split())
+            if not command.strip():
+                continue
+
+            try:
+                command_parts = shlex.split(command)
+            except ValueError as exc:
+                IO.error(str(exc))
+                continue
+
+            # split command respecting shell-like quotes and parse the arguments
+            parsed_args = self.parser.parse(command_parts)
             if parsed_args is not None:
                 self.argument_handler(parsed_args)
 

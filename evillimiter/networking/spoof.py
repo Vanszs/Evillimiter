@@ -45,10 +45,8 @@ class ARPSpoofer(object):
 
     def _spoof(self):
         while self._running:
-            self._hosts_lock.acquire()
-            # make a deep copy to reduce lock time
-            hosts = self._hosts.copy()
-            self._hosts_lock.release()
+            with self._hosts_lock:
+                hosts = self._hosts.copy()
 
             for host in hosts:
                 if not self._running:

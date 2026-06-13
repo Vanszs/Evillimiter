@@ -12,10 +12,12 @@ class Host(object):
         self.watched = False
 
     def __eq__(self, other):
+        if not isinstance(other, Host):
+            return NotImplemented
         return self.ip == other.ip
 
     def __hash__(self):
-        return hash((self.mac, self.ip))
+        return hash(self.ip)
 
     def pretty_status(self):
         if self.limited:

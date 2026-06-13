@@ -45,10 +45,9 @@ class BandwidthMonitor(object):
         if self._running:
             return
 
+        self._running = True  # set before thread start to avoid race condition
         sniff_thread = threading.Thread(target=self._sniff, args=[], daemon=True)
         sniff_thread.start()
-
-        self._running = True
 
     def stop(self):
         self._running = False
@@ -82,9 +81,13 @@ class BandwidthMonitor(object):
                             result.download_total_size += len(pkt)
                             result.download_total_count += 1
                             result._download_temp_size += len(pkt)
-                        
+
         def stop_filter(pkt):
             return not self._running
 
-        sniff(iface=self.interface, prn=pkt_handler, stop_filter=stop_filter, store=0)
-    
+        while self._running:
+            try:
+                sniff(iface=self.interface, prn=pkt_handler, stop_filter=stop_filter, store=0)
+            except Exception:
+                if self._running:
+                    time.sleep(1)  # brief pause before retry on interface error
